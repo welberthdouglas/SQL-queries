@@ -1,0 +1,89 @@
+5-
+
+SELECT vendor,COUNT(DISTINCT t.sku)
+FROM trnsact t LEFT JOIN skstinfo s ON t.sku=s.sku
+               LEFT JOIN skuinfo u ON t.sku=u.sku
+WHERE s.sku IS NULL
+GROUP BY vendor
+ORDER BY  COUNT(DISTINCT t.sku) DESC
+
+
+6-
+
+SELECT u.brand,t.sku,COUNT(t.sku) AS cont,STDDEV_POP(t.sku) AS standdev
+FROM trnsact t LEFT JOIN skuinfo u ON t.sku=u.sku
+GROUP BY u.brand,t.sku
+HAVING cont >100
+ORDER BY standdev DESC
+
+
+7-
+
+SELECT tt.store,tt.city,tt.state,
+(SUM(tt.DR12)/SUM(tt.diasvenda12))-(SUM(tt.DR11)/SUM(tt.diasvenda11)) AS ADR
+FROM(
+SELECT EXTRACT(MONTH from saledate) AS month_n,EXTRACT(YEAR from saledate) AS year_n, 
+       t.store,city,state,
+                COUNT(DISTINCT saledate) AS diasvenda,
+                COUNT(DISTINCT CASE WHEN month_n =12 THEN saledate END) AS diasvenda12, 
+                COUNT(DISTINCT CASE WHEN month_n =11 THEN saledate END) AS diasvenda11,
+                SUM(CASE WHEN month_n =11 THEN amt END) AS DR11,                
+                SUM(CASE WHEN month_n =12 THEN amt END) AS DR12
+FROM trnsact t JOIN store_msa s ON t.store=s.store
+WHERE stype='P' AND (month_n NOT IN('') OR (month_n =8 AND year_n=2004))
+GROUP BY month_n,year_n,t.store,msa_high,city,state
+HAVING diasvenda>=20) AS tt
+GROUP BY tt.store,tt.city,tt.state
+ORDER BY ADR DESC
+
+8-
+
+SELECT tt.store,tt.city,tt.state,SUM(tt.DR)/SUM(tt.diasvenda) AS ADR,tt.msa_income
+FROM(
+SELECT EXTRACT(MONTH from saledate) AS month_n,EXTRACT(YEAR from saledate) AS year_n, 
+       t.store,city,state,msa_income,
+                COUNT(DISTINCT saledate) AS diasvenda,
+                SUM(amt) AS DR               
+FROM trnsact t JOIN store_msa s ON t.store=s.store
+WHERE stype='P' AND (month_n NOT IN('') OR (month_n =8 AND year_n=2004))
+GROUP BY month_n,year_n,t.store,msa_high,city,state,msa_income
+HAVING diasvenda>=20) AS tt
+GROUP BY tt.store,tt.city,tt.state,tt.msa_income
+ORDER BY tt.msa_income
+
+9-
+
+SELECT tt.income, SUM(tt.dayrevenue)/SUM(tt.diasvenda) AS ADR
+FROM(
+SELECT EXTRACT(MONTH from saledate) AS month_n,EXTRACT(YEAR from saledate) AS year_n, 
+       t.store, COUNT(DISTINCT saledate) AS diasvenda, SUM(amt) AS dayrevenue,
+       CASE WHEN msa_income>1 AND msa_income<=20000 THEN 'low'
+            WHEN msa_income>20000 AND msa_income<=30000 THEN 'med-low'
+            WHEN msa_income>30000 AND msa_income<=40000 THEN 'med-high'
+            WHEN msa_income>40000 AND msa_income<=60000 THEN 'high'
+       END AS income
+FROM trnsact t JOIN store_msa s ON t.store=s.store
+WHERE stype='P' AND (month_n NOT IN('') OR (month_n =8 AND year_n=2004))
+GROUP BY month_n,year_n,t.store,msa_income
+HAVING diasvenda>=20) AS tt
+GROUP BY tt.income
+
+10- 
+
+SELECT tt.pop, SUM(tt.dayrevenue)/SUM(tt.diasvenda) AS ADR
+FROM(
+SELECT EXTRACT(MONTH from saledate) AS month_n,EXTRACT(YEAR from saledate) AS year_n, 
+       t.store, COUNT(DISTINCT saledate) AS diasvenda, SUM(amt) AS dayrevenue,
+       CASE WHEN msa_pop>1 AND msa_pop<=100000 THEN 'verry small'
+            WHEN msa_pop>100000 AND msa_pop<=200000 THEN 'small'
+            WHEN msa_pop>200000 AND msa_pop<=500000 THEN 'med small'
+            WHEN msa_pop>500000 AND msa_pop<=1000000 THEN 'med large'
+            WHEN msa_pop>1000000 AND msa_pop<=5000000 THEN 'large'
+            WHEN msa_pop>5000000 THEN 'verry large'
+       END AS pop
+FROM trnsact t JOIN store_msa s ON t.store=s.store
+WHERE stype='P'
+GROUP BY month_n,year_n,t.store,msa_pop
+HAVING diasvenda>=20) AS tt
+GROUP BY tt.pop
+
