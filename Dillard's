@@ -1,0 +1,93 @@
+1-
+SELECT EXTRACT(MONTH from saledate) AS month_n,EXTRACT(YEAR from saledate) AS year_n, COUNT(DISTINCT saledate)
+FROM trnsact
+WHERE stype='P'
+GROUP BY month_n,year_n
+ORDER BY year_n,month_n
+
+
+2-BIZU 
+
+SELECT MAX(CASE WHEN EXTRACT(MONTH from saledate)=12
+         THEN saledate
+         END) AS last_day_in_Dec
+FROM trnsact
+
+=
+
+SELECT MAX(trnsactfixed.saledate)
+FROM(SELECT EXTRACT(MONTH from saledate) AS msale, saledate
+     FROM trnsact
+     WHERE msale=12) AS trnsactfixed
+
+
+2-
+
+Resposta
+
+SELECT TOP 10 trnfixed.sku, SUM(trnfixed.amt) AS vendas
+FROM (SELECT sku, amt,saledate,EXTRACT(MONTH from saledate) AS month_n,EXTRACT(YEAR from saledate) AS year_n
+      FROM trnsact
+      WHERE month_n IN(6,7,8) AND stype='P') AS trnfixed
+GROUP BY trnfixed.sku
+ORDER BY vendas DESC
+
+OU
+
+SELECT TOP 10 sku, SUM(CASE WHEN EXTRACT(MONTH from saledate)=10 THEN amt
+                            END) AS vendas
+FROM trnsact
+WHERE stype='P'
+GROUP BY sku
+ORDER BY vendas DESC
+
+Resposta se excluindo o mês de agosto incomopleto
+
+SELECT TOP 10 trnfixed.sku, SUM(trnfixed.amt) AS vendas
+FROM (SELECT sku, amt,saledate,EXTRACT(MONTH from saledate) AS month_n,EXTRACT(YEAR from saledate) AS year_n
+      FROM trnsact
+      WHERE (month_n IN(6,7) OR (month_n =8 AND year_n=2004) AND stype='P') AS trnfixed
+GROUP BY trnfixed.sku
+ORDER BY vendas DESC
+
+3-
+
+SELECT EXTRACT(MONTH from saledate) AS month_n,EXTRACT(YEAR from saledate) AS year_n, store, COUNT(DISTINCT saledate) AS diasvenda, SUM(amt)/diasvenda AS avgrevenue
+FROM trnsact
+WHERE stype='P'
+GROUP BY month_n,year_n,store
+ORDER BY avgrevenue DESC
+
+
+Resposta excluindo-se lojas com menos de 20 dias de vendas, e excluindo-se o mes de agosto de 2005
+
+SELECT EXTRACT(MONTH from saledate) AS month_n,EXTRACT(YEAR from saledate) AS year_n, store, COUNT(DISTINCT saledate) AS diasvenda, SUM(amt)/diasvenda AS avgrevenue
+FROM trnsact
+WHERE stype='P' AND (month_n<>8 AND year_n<>2005)
+GROUP BY month_n,year_n,store
+HAVING diasvenda>=20
+ORDER BY avgrevenue DESC
+
+
+BIZU combining strings
+
+SELECT EXTRACT(YEAR from saledate)||EXTRACT(MONTH from saledate) AS data
+FROM trnsact
+
+
+5-
+
+SELECT tt.education, SUM(tt.dayrevenue)/SUM(tt.diasvenda) AS ADR
+FROM(
+SELECT EXTRACT(MONTH from saledate) AS month_n,EXTRACT(YEAR from saledate) AS year_n, 
+       t.store, COUNT(DISTINCT saledate) AS diasvenda, SUM(amt) AS dayrevenue,
+       CASE WHEN msa_high>=50 AND msa_high<=60 THEN 'low education'
+            WHEN msa_high>60 AND msa_high<=70 THEN 'medium education'
+            WHEN msa_high>70 THEN 'high education'
+       END AS education
+FROM trnsact t JOIN store_msa s ON t.store=s.store
+WHERE stype='P' AND (month_n NOT IN('') OR (month_n =8 AND year_n=2004))
+GROUP BY month_n,year_n,t.store,msa_high
+HAVING diasvenda>=20) AS tt
+GROUP BY education
+
